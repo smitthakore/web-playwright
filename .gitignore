@@ -1,0 +1,20 @@
+.env
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+.idea/
+*.log
+dist/
+build/
+workspace/generated-poms/*
+!workspace/generated-poms/.gitkeep
+
+# Python Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+.Python

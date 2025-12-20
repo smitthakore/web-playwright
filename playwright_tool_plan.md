@@ -1,641 +1,423 @@
 # Implementation Plan: Web-Based Playwright Script Generation Tool
-## **Using Free/Trial Cloud LLM APIs**
+## **Updated with Architectural Decisions**
 
 ---
 
-## Prerequisites
+## Key Architectural Decisions Made
 
-### Development Environment Setup
+### **1. Application Deployment**
+- ✅ **Application runs locally on Windows** (No Docker for app components)
+- ✅ **Docker ONLY for Playwright script execution** (isolated sandbox)
+- Reason: Faster development, simpler debugging, true isolation where needed
 
-#### Required Software
-1. **Docker Desktop** (v24.0+) - For containerized development
-2. **Node.js & npm** (v18+) - For MCP servers and frontend
-3. **Python** (v3.11+) - For AI agent backend
-4. **Git** - For version control
-5. **VS Code** (recommended) - With Docker, Python, ESLint extensions
+### **2. Agent Framework**
+- ✅ **LangGraph (with LangChain)** - NOT Claude Agent SDK
+- Reason: Model-agnostic, supports Groq/Claude/GPT/Gemini, advanced orchestration
 
-#### **API Keys & Free Tier Options**
+### **3. LLM Strategy**
+- ✅ **Phase 1-2**: Groq (Free, unlimited) - llama-3.3-70b-versatile
+- ✅ **Phase 3-4**: Claude 3.5 Haiku (Optional, $5 credits)
+- ✅ **Production**: Configurable (Groq/Claude/Gemini via env variable)
 
-**Option 1: Anthropic Claude (RECOMMENDED)**
-- **Free Trial**: $5 free credits on signup
-- **No credit card required initially**
-- Sign up at: console.anthropic.com
-- **Model**: Claude 3.5 Haiku ($0.80/$4.00 per million tokens)
-- **$5 gets you**: ~400-600 POM generations (excellent for initial development)
-- **Trial period**: Credits don't expire, use at your pace
-
-**Option 2: OpenAI GPT**
-- **Free Trial**: $5 free credits (expires after 3 months)
-- Sign up at: platform.openai.com
-- **Model**: GPT-4o-mini ($0.15/$0.60 per million tokens)
-- **$5 gets you**: ~800-1000 generations
-
-**Option 3: Google Gemini**
-- **Free Tier**: 1500 requests/day on Gemini 1.5 Flash
-- **Completely free** (no credit card needed)
-- Sign up at: ai.google.dev
-- **Best for**: Extended free development period
-
-**Option 4: Groq (FASTEST & FREE)**
-- **Free Tier**: 30 requests/minute, unlimited usage
-- **Models**: Llama 3.1 70B, Mixtral (all free)
-- Sign up at: console.groq.com
-- **Best for**: Fast iterations during development
+### **4. Execution Isolation**
+- ✅ **Phase 1-2**: Python venv (fast development)
+- ✅ **Phase 3+**: Docker containers (production isolation)
+- ✅ **Implementation**: Hybrid with config switch (EXECUTION_MODE=venv/docker)
 
 ---
 
-## **Recommended Strategy for Free Development**
+## Technology Stack (Final)
 
-### **Phase-Based LLM Usage**
-
-**Week 1-2 (Initial Development)**: 
-- Use **Groq (Free, unlimited)** - No cost concerns, fast responses
-- Focus on: Architecture setup, MCP integration, basic workflows
-
-**Week 3-4 (Refinement)**:
-- Switch to **Anthropic Claude** ($5 free credits) - Better code quality
-- Focus on: POM generation quality, complex workflows
-
-**Week 5+ (Production Ready)**:
-- Use **Google Gemini Free Tier** - 1500 req/day is plenty for 3-5 users
-- Or budget for paid Claude/OpenAI ($10-20/month for small team)
-
-### **Cost-Free Development Timeline**
-You can complete entire 5-week development **spending $0**:
-- Weeks 1-2: Groq (free)
-- Weeks 3-4: Anthropic free credits
-- Week 5+: Gemini free tier or OpenAI free credits
+| Component | Technology | Notes |
+|-----------|-----------|-------|
+| **Agent Framework** | LangGraph + LangChain | Orchestration with cycles, model-agnostic |
+| **LLM** | Groq (llama-3.3-70b-versatile) | Free unlimited, configurable to others |
+| **Backend** | Python 3.12 + FastAPI | Local execution, venv isolation |
+| **Frontend** | Next.js 15 / React 19 | Local Node.js server |
+| **MCP Gateway** | Node.js 20 + MCP SDK | Local server, manual integration |
+| **Script Execution** | Python venv → Docker (later) | Hybrid approach |
+| **Deployment** | Local development | No containers for app |
 
 ---
 
-## Revised Technology Stack (Free LLM Focus)
+## Updated Phase 1: Foundation Setup (Week 1)
 
-| Component | Technology | Free Option |
-|-----------|-----------|-------------|
-| **Agent Framework** | Claude Agent SDK | ✅ Free (SDK is open source) |
-| **LLM - Development** | Groq API (Llama 3.1) | ✅ Free unlimited |
-| **LLM - Quality Testing** | Claude 3.5 Haiku | ✅ $5 free credits |
-| **LLM - Production** | Gemini 1.5 Flash | ✅ 1500 req/day free |
-| **Backend** | Python + Node.js | ✅ Free |
-| **Frontend** | Next.js / React | ✅ Free |
-| **MCP Servers** | Official MCP servers | ✅ Free |
-| **Docker** | Docker Desktop | ✅ Free for individuals |
+### ✅ **Completed Tasks:**
 
----
+1. **Project Structure Created**
+   - Root: `C:\Desktop\web-playwright`
+   - Folders: agent-backend, frontend, mcp-gateway, workspace
+   - Git initialized, .gitignore configured
 
-## Phase 1: Foundation Setup (Week 1)
-**LLM: Groq API (Free)**
+2. **Environment Setup**
+   - Python 3.12.1 venv created in agent-backend
+   - Groq API key configured (.env file)
+   - Model: llama-3.3-70b-versatile
 
-### Day 1-2: Project Scaffolding & Environment
+3. **Dependencies Installed**
+   - **Python**: groq, langchain 1.2.0, langgraph 1.0.5, langchain-groq 1.1.1, fastapi, uvicorn
+   - **Removed**: anthropic, websockets (not needed)
+   - **Node.js**: Frontend and MCP gateway packages installed
 
-**Objective**: Set up project structure and verify free API access
-
-#### Key Tasks:
-1. **Sign up for Groq API**
-   - Visit console.groq.com
-   - Create account (no credit card needed)
-   - Copy API key
-   - Test connection with simple curl command
-
-2. **Initialize Project Structure**
-   - Create git repository
-   - Set up directory structure (frontend, agent-backend, mcp-gateway)
-   - Create .env files with API keys
-   - Add .env to .gitignore
-
-3. **Docker Configuration**
-   - Write docker-compose.yml with 3 services
-   - Create Dockerfiles for each service
-   - Test: `docker-compose up` starts all containers
-
-4. **Environment Variables Setup**
-   ```
-   .env file structure:
-   - GROQ_API_KEY=your-key-here
-   - LLM_PROVIDER=groq
-   - MODEL_NAME=llama-3.1-70b-versatile
-   ```
-
-**Deliverable**: All containers running, Groq API accessible
+4. **Basic Tests Passed**
+   - ✅ Groq API connection verified
+   - ✅ LangGraph + Groq integration tested
+   - ✅ Simple agent graph working
 
 ---
 
-### Day 3-4: Agent Backend with Groq
+### 🔄 **Remaining Phase 1 Tasks:**
 
-**Objective**: Get Python agent calling Groq API successfully
+#### **Day 3-4: Build LangGraph Agent (Current Step)**
 
-#### Key Tasks:
-1. **Install Python Dependencies**
-   - anthropic SDK (for agent framework)
-   - groq SDK (for LLM calls)
-   - fastapi, uvicorn (for API server)
-   - python-dotenv (for config)
+**Objective**: Create production-ready agent with state management and tool preparation
 
-2. **Create Agent Configuration System**
-   - Config class that reads LLM_PROVIDER from env
-   - Support switching between Groq/Claude/OpenAI
-   - Validate API keys on startup
+**Tasks:**
 
-3. **Implement Basic Agent**
-   - Initialize Groq client
-   - Send test prompt
-   - Receive and parse response
-   - Handle errors gracefully
+1. **Rewrite `src/agent.py` with LangGraph**
+   - Define AgentState (messages, context, tool_results)
+   - Create planning node (decides which tools to use)
+   - Create execution node (calls tools)
+   - Create code generation node (creates POM files)
+   - Add conditional edges for orchestration
+   - Implement conversation history management
 
-4. **Create REST API**
-   - FastAPI endpoint: POST /api/generate
-   - Accepts user prompt
-   - Returns LLM response + token usage
-   - Add CORS for frontend access
+2. **Update `src/config.py`**
+   - Add LangGraph-specific configs
+   - Tool registry structure (for future MCP tools)
+   - Graph execution settings
 
-5. **Test End-to-End**
-   - Start agent-backend container
-   - Send test request via curl/Postman
-   - Verify response from Groq
+3. **Update `src/api.py`**
+   - Adapt endpoints for LangGraph streaming
+   - Add endpoint to view graph state
+   - Add endpoint to reset agent state
+   - Handle tool call responses
 
-**Deliverable**: Agent backend responding to prompts via Groq API
+4. **Create Agent Test Suite**
+   - Test multi-step reasoning
+   - Test state persistence
+   - Test conversation context
+   - Test error handling
+
+**Deliverable**: Production-ready LangGraph agent responding to complex prompts
 
 ---
 
-### Day 5-7: MCP Server Integration
+#### **Day 5-7: MCP Integration Preparation**
 
-**Objective**: Connect Filesystem and Playwright MCP servers to agent
+**Objective**: Prepare tool calling infrastructure for Playwright and Filesystem MCPs
 
-#### Key Tasks:
-1. **Set Up MCP Gateway (Node.js)**
-   - Install MCP SDK packages
-   - Install filesystem MCP server
-   - Create server startup script
+**Tasks:**
 
-2. **Configure Filesystem MCP**
-   - Set allowed directories (workspace folder)
-   - Define permissions (read/write/edit)
-   - Test basic file operations
+1. **Create Tool Wrapper System**
+   - Abstract layer to convert MCP tools → LangGraph tools
+   - Tool registry for dynamic tool loading
+   - Tool result parsing and validation
 
-3. **Install Playwright MCP**
-   - Install Playwright with browsers
-   - Configure browser automation settings
-   - Test navigation to sample page
+2. **Install MCP Servers (Node.js)**
+   - `@modelcontextprotocol/server-filesystem` in mcp-gateway
+   - Playwright MCP server
+   - Test servers independently
 
-4. **Bridge Agent to MCP**
-   - Create MCP gateway HTTP endpoints
-   - Update Python agent to call MCP gateway
-   - Implement tool calling workflow
+3. **MCP Gateway Service**
+   - HTTP endpoints to proxy tool calls
+   - Route: POST /mcp/call-tool
+   - Handle stdio communication with MCP servers
+
+4. **Connect Agent to MCP Gateway**
+   - LangGraph tool nodes call MCP gateway
+   - Parse MCP responses
+   - Handle errors and retries
 
 5. **Integration Testing**
-   - Agent calls: "write file test.py"
-   - Verify file appears in workspace
-   - Agent calls: "navigate to google.com"
-   - Verify browser action completes
+   - Agent calls filesystem MCP: write/read files
+   - Agent calls Playwright MCP: navigate, extract elements
+   - Verify end-to-end tool execution
 
-**Deliverable**: Agent can control files and browser via MCP
+**Deliverable**: Agent can call MCP tools via LangGraph orchestration
 
 ---
 
 ## Phase 2: Core Functionality (Week 2)
-**LLM: Still Groq (Free) - Focus on functionality**
 
-### Day 8-10: UI & First Working Demo
+### **Day 8-10: UI & First POM Generation**
 
-**Objective**: Build web interface and complete end-to-end POM generation
+**Objective**: Complete end-to-end workflow from UI to generated POM file
 
-#### Key Tasks:
-1. **Create Next.js Frontend**
-   - Initialize Next.js project with TypeScript
-   - Install UI dependencies (Tailwind, icons)
-   - Set up API connection to backend
+**Tasks:**
 
-2. **Build Core UI Components**
-   - Prompt input textarea (large, centered)
-   - Generate button with loading state
-   - Result display area (code viewer with syntax highlighting)
-   - Token usage display
+1. **Build Next.js Frontend**
+   - Prompt input interface
+   - Real-time agent status display (which node is executing)
+   - Code viewer with syntax highlighting
+   - Token usage and cost tracking
 
-3. **Implement Frontend-Backend Communication**
-   - POST request to agent API
-   - Show loading spinner during generation
-   - Display response in formatted code block
-   - Handle errors with user-friendly messages
+2. **Frontend-Backend Integration**
+   - WebSocket connection for streaming
+   - Display agent reasoning steps
+   - Show tool calls in progress
 
-4. **Create First Agent Workflow**
-   - User enters: "Generate POM for login page at example.com"
-   - Agent uses Playwright MCP to navigate
-   - Agent inspects page elements
-   - Agent generates Python POM class
-   - Agent writes file via Filesystem MCP
-   - Frontend displays generated code
+3. **First Complete Workflow**
+   - User: "Generate POM for login page at example.com"
+   - Agent graph: plan → navigate (Playwright MCP) → extract elements → generate code → save file (Filesystem MCP)
+   - UI: Display generated POM and save location
 
-5. **Test Complete Flow**
-   - Enter various prompts
-   - Verify POM files are generated
-   - Check file structure is correct
-   - Validate code quality
-
-**Deliverable**: Working demo - prompt to POM file in one click
+**Deliverable**: Working demo - prompt to POM file generation
 
 ---
 
-### Day 11-12: POM Generation Quality
+### **Day 11-12: POM Quality Enhancement**
 
-**Objective**: Improve quality of generated Page Object Models
+**Objective**: Improve generated POM quality through better prompts and validation
 
-#### Key Tasks:
-1. **Enhance Agent Prompts**
-   - Add system prompt for POM best practices
-   - Include examples of good POM structure
-   - Define locator selection strategy (data-testid > CSS > XPath)
+**Tasks:**
 
-2. **Implement Multi-Step Analysis**
-   - Agent navigates to page
-   - Agent identifies all interactive elements
-   - Agent extracts stable locators
-   - Agent organizes into logical groups
+1. **Enhanced System Prompts**
+   - POM best practices instructions
+   - Locator selection strategy
+   - Code quality guidelines
 
-3. **Generate Complete POM Structure**
-   - Python class with proper imports
-   - Docstrings for each method
-   - Type hints for parameters
-   - Both sync and async versions
+2. **Multi-Step Element Analysis**
+   - Identify all interactive elements
+   - Extract multiple locator strategies per element
+   - Rank by stability
 
-4. **Add File Organization**
-   - Create pages/ directory
-   - Generate __init__.py files
-   - Create conftest.py with fixtures
-   - Organize related POMs in subfolders
+3. **Advanced Code Generation**
+   - Type hints, docstrings
+   - Async/sync methods
+   - Wait conditions
+   - Error handling
 
-5. **Quality Validation**
-   - Test generated POMs on multiple sites
-   - Check locator uniqueness
-   - Verify code follows Python conventions
-   - Ensure imports are correct
-
-**Deliverable**: Production-quality POM files generated automatically
-
----
-
-### Day 13-14: File Management & Sessions
-
-**Objective**: Allow users to manage files and save their work
-
-#### Key Tasks:
-1. **Build File Browser UI**
-   - Tree view of workspace
-   - Show all generated files
-   - Click to preview file contents
-   - Syntax highlighting for Python code
-
-2. **Add File Operations**
-   - Download individual files
-   - Copy code to clipboard
-   - Delete files
-   - Rename files
-   - Create new folders
-
-3. **Implement Session Persistence**
-   - Save conversation history to database/JSON
-   - Allow resuming previous sessions
-   - Show list of recent projects
-   - Restore context on session load
-
-4. **Project Management**
-   - Create new project
-   - Switch between projects
-   - Each project has isolated workspace
-   - Export project as ZIP
-
-**Deliverable**: Users can manage all generated files and projects
-
----
-
-## Phase 3: Enhanced Features (Week 3-4)
-**LLM: Switch to Claude 3.5 Haiku (Use $5 free credits)**
-
-### Week 3: Advanced Agent Capabilities
-
-**Why switch to Claude now?**
-- Groq was perfect for building infrastructure
-- Claude excels at complex code generation
-- Better understanding of Playwright patterns
-- More reliable multi-step reasoning
-- $5 credits sufficient for this phase
-
-#### Key Tasks:
-1. **Update Agent Configuration**
-   - Add Anthropic API key to .env
-   - Switch LLM_PROVIDER to 'claude'
-   - Test connection with free credits
-   - Monitor credit usage via Anthropic console
-
-2. **Multi-Page Workflow**
-   - Agent navigates through multiple pages
-   - Generates interconnected POMs
-   - Creates complete test suite structure
-   - Links POMs together logically
-
-3. **Intelligent Element Selection**
-   - Agent explains locator choices
-   - Provides alternative locators
-   - Ranks locators by stability
-   - Validates uniqueness across page
-
-4. **Advanced POM Features**
-   - Wait conditions for dynamic elements
-   - Error handling in methods
-   - Reusable component extraction
-   - Page state validation methods
-
-5. **Agent Reasoning Transparency**
-   - Show agent's thought process
-   - Display step-by-step actions
-   - Log tool calls and responses
-   - Explain why certain decisions were made
-
-**Deliverable**: Agent handles complex multi-page applications
-
----
-
-### Week 4: Testing & Script Execution
-
-#### Key Tasks:
-1. **Implement Script Execution Engine**
-   - Run generated Playwright scripts in Docker sandbox
-   - Capture stdout/stderr logs
-   - Take screenshots during execution
-   - Report success/failure
-
-2. **Generate Test Cases**
-   - Create pytest test files using POMs
-   - Add fixtures for browser setup
-   - Include assertions for validation
-   - Generate test data when needed
-
-3. **Validation & Quality Checks**
-   - Verify all locators work
-   - Check for duplicate methods
-   - Run pylint on generated code
+4. **Validation Node in Graph**
+   - Check generated code syntax
+   - Verify imports
    - Suggest improvements
 
-4. **Export & Documentation**
-   - Export complete project structure
-   - Generate README with setup instructions
-   - Create requirements.txt
-   - Add usage examples
-
-**Deliverable**: Executable test projects with documentation
+**Deliverable**: Production-quality POM files
 
 ---
 
-## Phase 4: Production Preparation (Week 5)
-**LLM: Switch to Gemini Free Tier (1500 req/day)**
+### **Day 13-14: File Management & Session Persistence**
 
-### Why Gemini for Production?
+**Objective**: Project and session management
 
-- **Completely free**: 1500 requests/day forever
-- **No credit card needed**: True free tier
-- **Sufficient for 3-5 users**: ~300 requests/user/day
-- **Good quality**: Gemini 1.5 Flash is solid for code gen
-- **Cost-effective scaling**: Only pay if you exceed free tier
+**Tasks:**
 
-#### Key Tasks:
+1. **File Browser UI**
+   - Tree view of workspace
+   - File preview with syntax highlighting
+   - Download, rename, delete operations
 
-1. **Add Gemini API Support**
-   - Install Google Generative AI SDK
-   - Add Gemini to agent configuration
-   - Test free tier limits
-   - Implement rate limiting
+2. **Session Management**
+   - Save LangGraph state to disk
+   - Resume previous conversations
+   - Project isolation
 
-2. **Multi-LLM Architecture**
-   - Support all three LLMs (Groq, Claude, Gemini)
-   - Allow switching via config
-   - Track usage per LLM
-   - Fallback mechanism if one fails
+3. **Multi-Project Support**
+   - Create/switch projects
+   - Isolated workspaces per project
+   - Export project as ZIP
+
+**Deliverable**: Complete file and project management
+
+---
+
+## Phase 3: Script Execution & Advanced Features (Week 3-4)
+
+### **Week 3: Execution Engine**
+
+**Objective**: Add script execution with isolation
+
+**Tasks:**
+
+1. **Build Execution Layer**
+   - Create `EXECUTION_MODE` config (venv/docker)
+   - Phase 3: Use venv for speed
+   - Implement subprocess execution
+   - Capture stdout/stderr/screenshots
+
+2. **Execution Results Display**
+   - Show test pass/fail status
+   - Display logs in UI
+   - Show screenshots from test runs
+
+3. **Test Generation**
+   - Generate pytest files using POMs
+   - Add fixtures and assertions
+   - Create test data
+
+**Deliverable**: Execute generated scripts and show results
+
+---
+
+### **Week 4: Production Preparation**
+
+**Objective**: Production-ready features
+
+**Tasks:**
+
+1. **Add Docker Execution Mode**
+   - Create Dockerfile for Playwright execution environment
+   - Python script to spawn Docker containers dynamically
+   - Switch via `EXECUTION_MODE=docker`
+
+2. **Multi-LLM Support**
+   - Add support for Claude API (langchain-anthropic)
+   - Add support for Gemini (langchain-google-genai)
+   - Config-based switching: LLM_PROVIDER=groq/claude/gemini
 
 3. **Production Hardening**
-   - Add user authentication (JWT)
-   - Implement rate limiting per user
-   - Add request logging
-   - Monitor API usage
+   - Add authentication (simple JWT)
+   - Rate limiting per user
+   - Request logging and monitoring
+   - Error handling and user feedback
 
-4. **Deployment Preparation**
-   - Create deployment guide
-   - Docker Compose for production
-   - Environment variable documentation
-   - Backup and restore procedures
+4. **Documentation**
+   - Setup guide
+   - API documentation
+   - User manual with examples
 
-5. **Cost Management Dashboard**
-   - Show API usage statistics
-   - Track requests per user
-   - Display remaining free tier quota
-   - Alerts when approaching limits
-
-**Deliverable**: Production-ready application with free LLM tier
+**Deliverable**: Production-ready application
 
 ---
 
-## Incremental Release Plan
+## Phase 4: Deployment & Scaling (Week 5+)
 
-### **Alpha (v0.1.0) - End of Week 2**
-**Using: Groq (Free)**
+### **Optional Production Features**
 
-**Features**:
-- ✅ Basic prompt → POM generation
-- ✅ Single page analysis
-- ✅ File viewing in UI
-- ✅ Docker-based setup
+**Tasks:**
 
-**Quality Bar**: Works for simple login pages
+1. **Cloud Deployment**
+   - Containerize app for cloud (if needed later)
+   - Docker Compose for multi-user setup
+   - Environment configuration
 
-**Cost**: $0 (Groq free tier)
+2. **Advanced Features**
+   - Multi-page workflow support
+   - Component extraction (reusable POMs)
+   - Test suite generation
+   - CI/CD integration helpers
 
----
+3. **Optimization**
+   - Caching frequent responses
+   - Parallel tool execution
+   - Graph optimization for speed
 
-### **Beta (v0.2.0) - End of Week 3**
-**Using: Claude 3.5 Haiku ($5 credits)**
-
-**Features**:
-- ✅ Multi-page workflows
-- ✅ Advanced POM structure
-- ✅ Session management
-- ✅ File operations
-
-**Quality Bar**: Production-quality POMs
-
-**Cost**: ~$2-3 from free credits
-
----
-
-### **Release Candidate (v0.3.0) - End of Week 4**
-**Using: Claude (remaining credits)**
-
-**Features**:
-- ✅ Script execution
-- ✅ Test generation
-- ✅ Project export
-- ✅ Validation tools
-
-**Quality Bar**: Complete test projects
-
-**Cost**: ~$1-2 from remaining credits
-
----
-
-### **Production (v1.0.0) - Week 5+**
-**Using: Gemini Free Tier**
-
-**Features**:
-- ✅ All features stable
-- ✅ Multi-user support
-- ✅ Authentication
-- ✅ Production deployment
-
-**Quality Bar**: Enterprise-ready
-
-**Cost**: $0 (Gemini 1500 req/day free)
-
----
-
-## Cost Summary: Total Spend $0
-
-### **Complete 5-Week Development Budget**
-
-| Week | LLM | Cost | Usage |
-|------|-----|------|-------|
-| **1-2** | Groq | **$0** | Unlimited free tier |
-| **3** | Claude | **$0** | $5 free credits (use $2-3) |
-| **4** | Claude | **$0** | Remaining $2-3 credits |
-| **5+** | Gemini | **$0** | 1500 req/day free forever |
-
-**Total Development Cost**: **$0**
-
-**Post-Launch (3-5 users)**: 
-- Continue with Gemini free tier: **$0/month**
-- If exceed 1500 req/day: Switch to paid tier (~$5-10/month)
-
----
-
-## Free Tier Limits & Management
-
-### **Groq (Weeks 1-2)**
-- **Limit**: 30 requests/minute
-- **Strategy**: Perfect for iterative development
-- **Monitoring**: Check console.groq.com dashboard
-
-### **Claude (Weeks 3-4)**
-- **Limit**: $5 credit (~400-600 generations)
-- **Strategy**: Use only for quality testing, not debugging
-- **Monitoring**: Watch console.anthropic.com credits
-
-### **Gemini (Week 5+)**
-- **Limit**: 1500 requests/day
-- **Strategy**: Production deployment for small teams
-- **Monitoring**: Google AI Studio dashboard
-
-### **Rate Limiting Strategy**
-- Add request counter in application
-- Show users remaining quota
-- Implement cooldown periods if approaching limits
-- Cache frequent responses when possible
+**Deliverable**: Scalable production system
 
 ---
 
 ## Success Metrics by Phase
 
-### **Phase 1 (Week 1) - Infrastructure**
-- ✅ All APIs connected (Groq working)
-- ✅ MCP servers operational
-- ✅ Zero setup issues for new developer
-- ✅ Cost: $0
+### **Phase 1 (Week 1)**
+- ✅ LangGraph agent responds to prompts
+- ✅ MCP tools callable from agent
+- ✅ Basic graph orchestration working
+- ✅ Cost: $0 (Groq free)
 
-### **Phase 2 (Week 2) - Core Functionality**
-- ✅ End-to-end POM generation working
-- ✅ Generated code is syntactically correct
-- ✅ File management functional
-- ✅ Cost: $0
+### **Phase 2 (Week 2)**
+- ✅ End-to-end POM generation functional
+- ✅ Generated POMs are valid Python code
+- ✅ File management working
+- ✅ Cost: $0 (Groq free)
 
-### **Phase 3 (Weeks 3-4) - Quality**
-- ✅ POMs pass code review standards
-- ✅ Complex multi-page apps supported
-- ✅ Generated tests execute successfully
-- ✅ Cost: $0 (using free credits)
+### **Phase 3 (Week 3-4)**
+- ✅ Scripts execute successfully
+- ✅ Docker isolation working
+- ✅ Multi-LLM support functional
+- ✅ Cost: $0-5 (optional Claude testing)
 
-### **Phase 4 (Week 5+) - Production**
-- ✅ 3-5 users can use concurrently
-- ✅ Stable on Gemini free tier
-- ✅ Documentation complete
-- ✅ Cost: $0/month ongoing
-
----
-
-## Risk Mitigation
-
-### **Free Tier Exhaustion**
-
-**Risk**: Run out of free credits during development
-
-**Mitigation**:
-1. Track API usage daily
-2. Use Groq for all debugging (unlimited)
-3. Only use Claude for final testing
-4. If Claude credits run out early, use OpenAI $5 credits
-5. Gemini free tier should never run out (1500/day is huge)
-
-### **API Rate Limits**
-
-**Risk**: Hit rate limits during heavy testing
-
-**Mitigation**:
-1. Implement exponential backoff
-2. Add request queuing system
-3. Spread testing across multiple days
-4. Use multiple free tier accounts if needed (dev/staging/prod)
-
-### **Quality Issues with Free Models**
-
-**Risk**: Free tier models produce lower quality code
-
-**Mitigation**:
-1. This is not a concern - all three options (Groq/Claude/Gemini) are high-quality
-2. Groq runs Llama 3.1 70B (excellent code gen)
-3. Claude 3.5 Haiku is very capable
-4. Gemini 1.5 Flash is Google's production model
-5. Can always upgrade to paid tiers later if needed
+### **Phase 4 (Week 5+)**
+- ✅ Multi-user capable
+- ✅ Production-stable
+- ✅ Complete documentation
+- ✅ Cost: $0/month (Groq or Gemini free)
 
 ---
 
-## Quick Start Checklist
+## Current Status: Phase 1, Day 3
 
-**Before Day 1:**
-- [ ] Create Groq account → Get API key (free, no card)
-- [ ] Create Anthropic account → Get $5 credits (no card initially)
-- [ ] Create Google AI account → Get Gemini key (free forever)
-- [ ] Install Docker Desktop
-- [ ] Install Node.js v18+
-- [ ] Install Python 3.11+
-- [ ] Install VS Code with Docker extension
-- [ ] Create project folder
-- [ ] Initialize git repository
+### ✅ **Completed:**
+- Project structure created
+- Groq API connected
+- LangGraph + Groq tested
+- Dependencies installed
 
-**Budget Verification:**
-- [ ] Groq: Verify "Free" tier active
-- [ ] Claude: Confirm $5 credit balance
-- [ ] Gemini: Verify 1500 req/day quota
+### 🔄 **Next Immediate Steps:**
+
+1. **Rewrite `src/agent.py`** with LangGraph (production agent)
+2. **Update `src/api.py`** for graph integration
+3. **Test multi-step agent workflows**
+4. **Prepare MCP tool integration**
+
+### 📋 **Files Status:**
+
+**Completed:**
+- ✅ `agent-backend/requirements.txt` (latest versions)
+- ✅ `agent-backend/.env` (Groq API key configured)
+- ✅ `agent-backend/src/config.py` (basic config)
+- ✅ `agent-backend/test_langgraph_groq.py` (connection test)
+- ✅ `.gitignore` (includes venv/)
+
+**To Create/Update:**
+- 🔄 `agent-backend/src/agent.py` (needs LangGraph rewrite)
+- 🔄 `agent-backend/src/api.py` (needs graph integration)
+- ⏳ `mcp-gateway/src/server.js` (not started)
+- ⏳ `frontend/` (not started)
 
 ---
 
-## Next Steps
+## Quick Reference: Key Commands
 
-### **Immediate Actions (Day 0)**
-1. Sign up for all three LLM services today
-2. Save all API keys in password manager
-3. Read Groq API documentation
-4. Set up development environment
-5. Create project folder structure
+### **Activate Python venv:**
+```powershell
+cd C:\Desktop\web-playwright\agent-backend
+.\venv\Scripts\activate
+```
 
-### **Day 1 Morning**
-1. Initialize git repository
-2. Create docker-compose.yml
-3. Write .env with Groq API key
-4. Test Groq connection with simple script
-5. Start building agent-backend container
+### **Run API Server:**
+```powershell
+python src/api.py
+```
 
-**You're ready to build with $0 budget! The entire tool can be developed and deployed without spending any money.**
+### **Test Agent:**
+```powershell
+python test_langgraph_groq.py
+```
+
+### **Check Package Versions:**
+```powershell
+pip show langchain langgraph langchain-groq
+```
+
+---
+
+## Cost Tracking
+
+| Phase | LLM | Estimated Cost | Actual Cost |
+|-------|-----|----------------|-------------|
+| **Week 1-2** | Groq | $0 | $0 |
+| **Week 3-4** | Groq | $0 | TBD |
+| **Production** | Groq/Gemini | $0/month | TBD |
+
+**Total Budget**: $0 for entire development
+
+---
+
+## Risk Mitigation Updates
+
+### **Groq Rate Limits**
+- Current: 30 req/min (plenty for single developer)
+- Mitigation: Add exponential backoff if needed
+- Monitor: console.groq.com dashboard
+
+### **Model Deprecation**
+- ✅ Already handled: llama-3.1-70b-versatile deprecated → switched to llama-3.3-70b-versatile
+- Future: Config-based model selection makes switching easy
+
+### **Complexity Management**
+- ✅ Using LangGraph simplifies orchestration
+- ✅ Avoided Docker complexity for app (only for execution)
+- ✅ Incremental feature addition prevents scope creep
+
+---
