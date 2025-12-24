@@ -9,7 +9,9 @@ class Config:
     MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-70b-versatile")
     MAX_TOKENS = 4096
     TEMPERATURE = 0.7
-    
+    PLANNER_PROMPT = "planner_v01"
+    CODEGEN_PROMPT = "codegen_v01"
+
     @classmethod
     def validate(cls):
         if not cls.GROQ_API_KEY:
