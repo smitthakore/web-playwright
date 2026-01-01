@@ -5,7 +5,7 @@ Filesystem MCP Client - Python wrapper for Node.js MCP server
 import httpx
 import os
 from typing import List, Dict, Optional
-from utils.logger import agent_logger
+from ..utils.logger import agent_logger
 
 
 class FilesystemMCP:
@@ -34,7 +34,6 @@ class FilesystemMCP:
         Returns:
             File content as string, or None if not found
         """
-        full_path = os.path.join(self.workspace_root, path)
         
         agent_logger.tool_call("filesystem_mcp.read_file", {"path": path})
         
@@ -42,7 +41,7 @@ class FilesystemMCP:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.gateway_url}/mcp/read",
-                    json={"path": full_path}
+                    json={"path": path} 
                 )
                 
                 if response.status_code == 200:
@@ -77,7 +76,6 @@ class FilesystemMCP:
         Returns:
             True if successful, False otherwise
         """
-        full_path = os.path.join(self.workspace_root, path)
         
         agent_logger.tool_call("filesystem_mcp.write_file", {
             "path": path,
@@ -89,7 +87,7 @@ class FilesystemMCP:
                 response = await client.post(
                     f"{self.gateway_url}/mcp/write",
                     json={
-                        "path": full_path,
+                        "path": path,
                         "content": content
                     }
                 )
@@ -116,7 +114,6 @@ class FilesystemMCP:
         Returns:
             List of file metadata dicts
         """
-        full_path = os.path.join(self.workspace_root, path)
         
         agent_logger.tool_call("filesystem_mcp.list_files", {"path": path})
         
@@ -124,7 +121,8 @@ class FilesystemMCP:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.gateway_url}/mcp/list",
-                    json={"path": full_path}
+                    # FIX: Send 'path' (relative), not 'full_path'
+                    json={"path": path} 
                 )
                 
                 if response.status_code == 200:
@@ -158,7 +156,6 @@ class FilesystemMCP:
         Returns:
             True if successful
         """
-        full_path = os.path.join(self.workspace_root, path)
         
         agent_logger.tool_call("filesystem_mcp.create_directory", {"path": path})
         
@@ -166,7 +163,7 @@ class FilesystemMCP:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.gateway_url}/mcp/mkdir",
-                    json={"path": full_path}
+                    json={"path": path}
                 )
                 
                 success = response.status_code == 200
