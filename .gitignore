@@ -8,8 +8,6 @@ __pycache__/
 *.log
 dist/
 build/
-workspace/generated-poms/*
-!workspace/generated-poms/.gitkeep
 
 # Python Virtual Environments
 venv/
@@ -18,3 +16,5 @@ ENV/
 .venv/
 *.egg-info/
 .Python
+frontend/
+workspace
