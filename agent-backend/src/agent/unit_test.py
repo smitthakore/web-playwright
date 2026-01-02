@@ -1,4 +1,5 @@
-from .agent import PlaywrightAgent
+# run with python src.agent.unit_test.py
+from agent import PlaywrightAgent
 
 if __name__ == "__main__":
     agent = PlaywrightAgent()

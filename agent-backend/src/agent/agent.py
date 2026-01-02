@@ -5,16 +5,14 @@ import time
 from typing import Optional, Dict
 from pydantic import SecretStr
 from langchain_groq import ChatGroq
-
+from langchain_core.messages import HumanMessage
 from ..config import Config
 from ._state_agent import AgentState
-
 from .nodes import AgentNodes
 from .graph import GraphBuilder
 from ..utils._load_prompt import load_prompt
 from ..utils.logger import agent_logger
-from langchain_core.messages import HumanMessage
-
+from ..tools.filesystem_mcp import FilesystemMCP
 
 class PlaywrightAgent:
     """
@@ -42,6 +40,10 @@ class PlaywrightAgent:
         agent_logger.info(f"Loading prompts: {planner_prompt}, {codegen_prompt}")
         self.planner_prompt = load_prompt("playwright", planner_prompt)
         self.codegen_prompt = load_prompt("playwright", codegen_prompt)
+        
+        # Initialize MCP client
+        agent_logger.info("Initializing Filesystem MCP client...")
+        self.mcp = FilesystemMCP()
         
         # Create nodes
         agent_logger.info("Creating agent nodes...")

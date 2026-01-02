@@ -165,18 +165,70 @@ Identified UI Elements:
         
         agent_logger.node_end("CODE_GENERATOR", f"Code: {len(state['generated_code'])} chars")
         return state
-    
+        
+    def _extract_class_name(self, code: str) -> str:
+        """
+        Extract class name from generated Python code
+        
+        Args:
+            code: Python code string
+            
+        Returns:
+            Class name or 'UnknownPage'
+        """
+        import re
+        
+        match = re.search(r'class\s+(\w+)', code)
+        if match:
+            class_name = match.group(1)
+            agent_logger.debug(f"Extracted class name: {class_name}")
+            return class_name
+        else:
+            agent_logger.debug("Could not extract class name from code")
+            return "UnknownPage"
+        
+
     def finalizer_node(self, state: AgentState) -> AgentState:
         """
-        Finalizer node - prepares final response
+        Finalizer node - prepares final response and saves file via MCP
         """
         agent_logger.node_start("FINALIZER", f"Task: {state['task_type']}")
         
         if state["task_type"] == "generate_pom" and state.get("generated_code"):
-            # Include file save information if available
-            save_info = ""
-            if state.get("file_saved_path"):
-                save_info = f"\n\nFile saved to: {state['file_saved_path']}"
+            # Save file via MCP
+            project_id = state.get("project_id", "default")
+            class_name = state.get("class_name", "UnknownPage")
+            
+            # Convert class name to snake_case for filename
+            filename = self._class_to_filename(class_name)
+            file_path = f"{project_id}/pages/{filename}.py"
+            
+            agent_logger.info(f"Saving POM to: {file_path}")
+            
+            # Save via MCP (synchronous for now, will make async later)
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Import MCP here to avoid circular import
+            from ..tools.filesystem_mcp import FilesystemMCP
+            mcp = FilesystemMCP()
+            
+            success = loop.run_until_complete(
+                mcp.write_file(file_path, state["generated_code"])
+            )
+            
+            if success:
+                state["file_saved_path"] = file_path
+                agent_logger.info(f"✅ File saved successfully to {file_path}")
+            else:
+                agent_logger.error("finalizer_node", Exception("Failed to save file via MCP"))
+            
+            # Include file save information
+            save_info = f"\n\n✅ File saved to: `{file_path}`" if success else "\n\n⚠️ Failed to save file"
             
             final_message = f"""Here is your Playwright Page Object Model:
 `````python
@@ -210,23 +262,14 @@ Changes were made while preserving your manual edits."""
         agent_logger.node_end("FINALIZER", "Response prepared")
         return state
     
-    def _extract_class_name(self, code: str) -> str:
+    def _class_to_filename(self, class_name: str) -> str:
         """
-        Extract class name from generated Python code
-        
-        Args:
-            code: Python code string
-            
-        Returns:
-            Class name or 'UnknownPage'
+        Convert class name to snake_case filename
+        Example: LoginPage -> login_page
         """
         import re
-        
-        match = re.search(r'class\s+(\w+)', code)
-        if match:
-            class_name = match.group(1)
-            agent_logger.debug(f"Extracted class name: {class_name}")
-            return class_name
-        else:
-            agent_logger.debug("Could not extract class name from code")
-            return "UnknownPage"
+        # Insert underscore before capitals
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', class_name)
+        # Insert underscore before capitals followed by lowercase
+        filename = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        return filename
