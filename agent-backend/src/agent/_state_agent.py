@@ -1,31 +1,40 @@
 """
-Agent state definition with comprehensive context tracking
+Agent state definition with locator tracking
 """
 
-from typing import TypedDict, Annotated, Literal, Optional, Dict, List
-from langgraph.graph.message import add_messages
+from typing import TypedDict, Optional, List, Dict
+from langchain_core.messages import BaseMessage
 
 
 class AgentState(TypedDict):
     """
-    Complete state that flows through the agent graph
+    State schema for the Playwright agent graph
     """
-    # Conversation
-    messages: Annotated[list, add_messages]
     
-    # Task tracking
-    task_type: Literal["generate_pom", "update_pom", "clarification_needed", "unknown"]
-    elements: List[str]
+    # Core conversation
+    messages: List[BaseMessage]
     
-    # Code generation
-    generated_code: str
+    # Task information
+    task_type: str  # generate_pom | execute_tool | clarification_needed | error
+    target_url: Optional[str]
+    elements: List[str]  # UI elements to include (e.g., "login button")
+    
+    # Extracted data from tools
+    extracted_locators: Dict[str, str]  # Real locators from playwright_extract_locators
+    navigation_complete: bool
+    
+    # Generated code
+    page_object_code: str  # Page object class code
+    test_code: str  # Test file code
     class_name: str
     
-    # File context (for context-aware regeneration)
+    # File management
     project_id: str
-    existing_files: Dict[str, str]  # {path: content}
-    user_edits: Dict[str, dict]     # {path: metadata}
+    existing_files: Dict[str, str]
+    user_edits: Dict[str, dict]
+    saved_files: List[str]  # Paths of successfully saved files
     
-    # Execution metadata
-    file_saved_path: Optional[str]
+    # Execution tracking
     execution_logs: List[str]
+    iteration_count: int  # Current iteration number
+    max_iterations: int  # Maximum allowed iterations (prevent infinite loops)

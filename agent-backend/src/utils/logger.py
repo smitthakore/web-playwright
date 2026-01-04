@@ -28,6 +28,9 @@ class AgentLogger:
             )
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
+        
+        # Prevent propagation to root logger (fixes duplicate logs)
+        self.logger.propagate = False
     
     def node_start(self, node_name: str, state_info: str = ""):
         """Log when a node starts executing"""

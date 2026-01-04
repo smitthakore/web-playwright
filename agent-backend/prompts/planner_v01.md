@@ -12,13 +12,20 @@ IMPORTANT RULES:
 
 JSON Schema:
 {
-  "task_type": "generate_pom" | "clarification_needed",
+  "task_type": "generate_pom" | "execute_tool" | "clarification_needed",
   "target_url": string | null,
   "elements_to_find": string[],
+  "tool": string | null,
+  "args": object | null,
   "reasoning": string
 }
 
-Guidelines:
 - If the request clearly asks for a Page Object Model → task_type = generate_pom
+- IF LOCATORS ARE UNKNOWN OR NOT VERIFIED: task_type = execute_tool. You MUST verify locators first.
 - If required details are missing → task_type = clarification_needed
 - Extract meaningful UI elements (e.g., "username field", "login button")
+
+TOOL USAGE RULES:
+- You MUST navigate to the URL and inspect the page before generating verification code.
+- Use `playwright.navigate` then `playwright.extract_locator` (or get_content) to find real selectors.
+- DO NOT ASSUME selectors like `#username` or `[data-testid=username]` unless verified.

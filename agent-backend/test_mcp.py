@@ -1,72 +1,78 @@
 """
-Test Python MCP Client connection to Node.js MCP Gateway
+Test Python MCP Client connection (Direct Integration)
 """
 
 import asyncio
+from src.utils.mcp_client_manager import MCPClientManager
 from src.tools.filesystem_mcp import FilesystemMCP
+from src.tools.playwright_mcp import PlaywrightMCP
 
 
 async def test_mcp_operations():
     print("="*80)
-    print("Testing Python → MCP Gateway Connection")
+    print("Testing internal Python MCP Client Manager")
     print("="*80)
     
-    # Initialize MCP client
-    mcp = FilesystemMCP(gateway_url="http://localhost:3001")
+    # Initialize Manager
+    manager = MCPClientManager()
     
-    # Test 1: Write a file
-    print("\n1️⃣  TEST: Write file")
-    success = await mcp.write_file(
-        "python_test/hello.py",
-        'print("Hello from Python MCP Client!")'
-    )
-    print(f"   Result: {'✅ SUCCESS' if success else '❌ FAILED'}")
-    
-    # Test 2: Read the file back
-    print("\n2️⃣  TEST: Read file")
-    content = await mcp.read_file("python_test/hello.py")
-    if content:
-        print(f"   Result: ✅ SUCCESS")
-        print(f"   Content: {content[:50]}...")
-    else:
-        print(f"   Result: ❌ FAILED")
-    
-    # Test 3: List files
-    print("\n3️⃣  TEST: List files")
-    files = await mcp.list_files("")
-    print(f"   Result: ✅ Found {len(files)} items")
-    for file in files[:3]:  # Show first 3
-        print(f"   - {file['name']} ({file['type']})")
-    
-    # Test 4: Create directory
-    print("\n4️⃣  TEST: Create directory")
-    success = await mcp.create_directory("python_test/pages")
-    print(f"   Result: {'✅ SUCCESS' if success else '❌ FAILED'}")
-    
-    # Test 5: Write a POM file
-    print("\n5️⃣  TEST: Write POM file")
-    pom_code = """class LoginPage:
-    def __init__(self, page):
-        self.page = page
-    
-    async def login(self, username, password):
-        await self.page.fill("#username", username)
-        await self.page.fill("#password", password)
-        await self.page.click("#login-button")
-"""
-    success = await mcp.write_file("python_test/pages/login_page.py", pom_code)
-    print(f"   Result: {'✅ SUCCESS' if success else '❌ FAILED'}")
-    
-    # Test 6: List the pages directory
-    print("\n6️⃣  TEST: List pages directory")
-    files = await mcp.list_files("python_test/pages")
-    print(f"   Result: ✅ Found {len(files)} items")
-    for file in files:
-        print(f"   - {file['name']} ({file['size']} bytes)")
-    
-    print("\n" + "="*80)
-    print("✅ All Python MCP Client Tests Complete")
-    print("="*80)
+    try:
+        # Initialize Tools
+        print("\n0️⃣  Initializing Tools...")
+        fs = FilesystemMCP(manager)
+        pw = PlaywrightMCP(manager)
+        
+        # Test 1: Write a file
+        print("\n1️⃣  TEST: Write file")
+        success = await fs.write_file(
+            "workspace/hello.py",
+            'print("Hello from Python MCP Client!")'
+        )
+        print(f"   Result: {'✅ SUCCESS' if success else '❌ FAILED'}")
+        
+        # Test 2: Read the file back
+        print("\n2️⃣  TEST: Read file")
+        content = await fs.read_file("workspace/hello.py")
+        if content:
+            print(f"   Result: ✅ SUCCESS")
+            print(f"   Content: {content[:50]}...")
+        else:
+            print(f"   Result: ❌ FAILED")
+        
+        # Test 3: List files
+        print("\n3️⃣  TEST: List files")
+        files = await fs.list_files("")
+        print(f"   Result: ✅ Found items")
+        for file in files[:3]: 
+            print(f"   - {file.get('name', 'unknown')}")
+            
+        # Test 4: Playwright Navigation (Headless)
+        print("\n4️⃣  TEST: Playwright Navigate (Headless)")
+        # Note: This might fail if playwright-mcp server isn't installed/setup correctly in environment
+        # But we assume the npx command works.
+        try:
+            success = await pw.navigate("https://example.com")
+            print(f"   Result: {'✅ SUCCESS' if success else '❌ FAILED'}")
+            
+            if success:
+                print("\n5️⃣  TEST: Playwright Screenshot")
+                # This returns the screenshot data/result
+                result = await pw.screenshot()
+                if result and result.get("success"):
+                     print(f"   Result: ✅ SUCCESS (screenshot taken)")
+                else:
+                     print(f"   Result: ❌ FAILED")
+
+        except Exception as e:
+            print(f"   Result: ❌ FAILED (Playwright error: {e})")
+
+    finally:
+        # Cleanup
+        print("\n" + "="*80)
+        print("Cleaning up connections...")
+        await manager.disconnect_all()
+        print("✅ Done")
+        print("="*80)
 
 
 if __name__ == "__main__":
