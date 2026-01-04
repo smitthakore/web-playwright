@@ -16,5 +16,4 @@ ENV/
 .venv/
 *.egg-info/
 .Python
-frontend/
 workspace
