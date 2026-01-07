@@ -10,10 +10,10 @@ load_dotenv()
 class Config:
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
-    MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-70b-versatile")
-    MAX_TOKENS = 4096
+    MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
+    MAX_TOKENS = 8192
     TEMPERATURE = 0.7
-    PLANNER_PROMPT = "planner_v02"
+    PLANNER_PROMPT = "planner_v03"
     CODEGEN_PROMPT = "codegen_v02"
 
     @classmethod

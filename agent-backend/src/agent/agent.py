@@ -23,7 +23,7 @@ class PlaywrightAgent:
     
     def __init__(
         self,
-        planner_prompt: str = "planner_v02",  # UPDATED to use new prompt
+        planner_prompt: str = Config.PLANNER_PROMPT,
         codegen_prompt: str = Config.CODEGEN_PROMPT,
     ):
         agent_logger.info("="*8)
